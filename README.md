@@ -162,12 +162,14 @@ System Modes:
 ---
 
 ## 📸 Images
-![CubeSat]<img width="1204" height="1600" alt="image" src="https://github.com/user-attachments/assets/99564572-fecb-4f05-8adb-2286fbf45f66" />
+## CubeSat
+<img width="1204" height="1600" alt="image" src="https://github.com/user-attachments/assets/99564572-fecb-4f05-8adb-2286fbf45f66" />
 <img width="1600" height="1204" alt="image" src="https://github.com/user-attachments/assets/6aa1b9a0-5c15-4f0a-8dda-f9a82dc58da7" />
 <img width="1600" height="1204" alt="image" src="https://github.com/user-attachments/assets/86b995d2-947a-497f-b20c-20bea62cd860" />
 <img width="1204" height="1600" alt="image" src="https://github.com/user-attachments/assets/ab4056ee-78ac-4d2e-a748-af5a93b542d2" />
 
-![Dashboard]<img width="1512" height="801" alt="WhatsApp Image 2026-04-17 at 9 25 40 PM" src="https://github.com/user-attachments/assets/2a57a336-1771-41c4-b236-8a235215c0f9" />
+## Dashboard
+<img width="1512" height="801" alt="WhatsApp Image 2026-04-17 at 9 25 40 PM" src="https://github.com/user-attachments/assets/2a57a336-1771-41c4-b236-8a235215c0f9" />
 
 
 ---
