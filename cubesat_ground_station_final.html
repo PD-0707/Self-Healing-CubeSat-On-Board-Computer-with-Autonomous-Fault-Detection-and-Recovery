@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CubeSat Ground Station</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0f1218;
+    --bg3: #151a22;
+    --bg4: #1c2230;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8edf5;
+    --text2: #7a8699;
+    --text3: #4a5568;
+    --green: #00e5a0;
+    --green-dim: rgba(0,229,160,0.15);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.15);
+    --red: #ff4d6d;
+    --red-dim: rgba(255,77,109,0.15);
+    --blue: #4d9fff;
+    --blue-dim: rgba(77,159,255,0.12);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 28px; height: 28px;
+    border: 1.5px solid var(--green);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .logo-icon::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--green);
+  }
+  .logo-text { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+  .logo-sub { font-size: 11px; color: var(--text2); font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #444;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.error     { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+  .status-dot.demo      { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+  .btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+  }
+  .btn:hover  { background: var(--bg4); border-color: rgba(255,255,255,0.2); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: var(--green-dim); border-color: rgba(0,229,160,0.35); color: var(--green); }
+  .btn.primary:hover { background: rgba(0,229,160,0.22); }
+  .btn.danger  { background: var(--red-dim);   border-color: rgba(255,77,109,0.35);  color: var(--red); }
+
+  main { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  .metric-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent, var(--border2));
+    transition: background 0.3s;
+  }
+  .metric-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    transition: color 0.3s;
+    font-family: var(--mono);
+  }
+  .metric-value.normal   { color: var(--green); }
+  .metric-value.safe     { color: var(--amber); }
+  .metric-value.critical { color: var(--red);   }
+
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .chart-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chart-value-live {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+  }
+  .chart-wrap { position: relative; height: 130px; }
+
+  .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+  }
+
+  .fault-flags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fault-flag {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text3);
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .fault-flag.active {
+    background: var(--red-dim);
+    border-color: rgba(255,77,109,0.4);
+    color: var(--red);
+    box-shadow: 0 0 10px rgba(255,77,109,0.15);
+  }
+
+  .status-rows { display: flex; flex-direction: column; gap: 10px; }
+  .status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .status-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .status-key { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+  .status-val { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+
+  .log-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .log-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .log-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); }
+  .log-body {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text2);
+    height: 140px;
+    overflow-y: auto;
+    padding: 10px 16px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+  .log-body::-webkit-scrollbar { width: 4px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .log-line { display: block; }
+  .log-line.sys  { color: var(--green); }
+  .log-line.err  { color: var(--red); }
+  .log-line.warn { color: var(--amber); }
+
+  footer {
+    text-align: center;
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    border-top: 1px solid var(--border);
+  }
+  footer span { color: var(--text2); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .pulsing { animation: pulse 1.5s infinite; }
+
+  #nosupport {
+    display: none;
+    background: var(--red-dim);
+    border: 1px solid rgba(255,77,109,0.3);
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 12px;
+    margin: 12px 24px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <div>
+      <div class="logo-text">CubeSat Ground Station</div>
+      <div class="logo-sub">LoRa RX · 433 MHz</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <div class="status-dot" id="conn-dot"></div>
+      <span id="conn-label">Disconnected</span>
+    </div>
+    <button class="btn primary" id="connectBtn">Connect Serial</button>
+    <button class="btn" id="demoBtn">Demo Mode</button>
+  </div>
+</header>
+
+<div id="nosupport">Web Serial API not supported — use Chrome or Edge</div>
+
+<main>
+
+  <div class="metrics">
+    <div class="metric-card" id="card-mode">
+      <div class="metric-label">Mode</div>
+      <div class="metric-value" id="m-mode">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Voltage</div>
+      <div class="metric-value" id="m-volt">— V</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Temperature</div>
+      <div class="metric-value" id="m-temp">— °C</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Faults</div>
+      <div class="metric-value" id="m-faults">0x00</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Voltage (V) <span class="chart-value-live" id="lv-volt">—</span></div>
+      <div class="chart-wrap"><canvas id="voltChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Temperature (°C) <span class="chart-value-live" id="lv-temp">—</span></div>
+      <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Stability <span class="chart-value-live" id="lv-stab">—</span></div>
+      <div class="chart-wrap"><canvas id="stabChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Gyro (°/s) <span class="chart-value-live" id="lv-gyro">—</span></div>
+      <div class="chart-wrap"><canvas id="gyroChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="bottom-row">
+    <div class="panel">
+      <div class="panel-title">Fault Flags</div>
+      <div class="fault-flags">
+        <span class="fault-flag" id="f0">TEMP HIGH</span>
+        <span class="fault-flag" id="f1">LOW VOLT</span>
+        <span class="fault-flag" id="f3">TEMP DELTA</span>
+        <span class="fault-flag" id="f4">INSTABILITY</span>
+        <span class="fault-flag" id="f5">MANUAL FAULT</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">System Status</div>
+      <div class="status-rows">
+        <div class="status-row">
+          <span class="status-key">Uptime</span>
+          <span class="status-val" id="m-ts">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Timestamp</span>
+          <span class="status-val" id="m-tsraw">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Packets RX</span>
+          <span class="status-val" id="m-packets">0</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Fault Events</span>
+          <span class="status-val" id="m-fault-events">0</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">Manual Triggers</span>
+          <span class="status-val" id="m-manual-triggers">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="log-panel">
+    <div class="log-header">
+      <span class="log-title">Serial Log</span>
+      <button class="btn" style="padding:3px 10px;font-size:11px;" id="clearBtn">Clear</button>
+    </div>
+    <div class="log-body" id="log"></div>
+  </div>
+
+</main>
+
+<footer>
+  Web Serial API &nbsp;·&nbsp; <span>Chrome / Edge required</span> &nbsp;·&nbsp; Baud: <span>115200</span> &nbsp;·&nbsp; Freq: <span>433 MHz</span>
+</footer>
+
+<script>
+const MAX_PTS = 50;
+let packetCount = 0, faultEvents = 0, manualTriggers = 0;
+let demoInterval = null, port = null, reader = null;
+
+// ── Charts ──
+function makeChart(id, color) {
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: Array(MAX_PTS).fill(''),
+      datasets: [{
+        data: [],
+        borderColor: color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.35,
+        fill: true,
+        backgroundColor: color.replace(')', ', 0.06)').replace('rgb', 'rgba')
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { color: '#4a5568', font: { family: "'JetBrains Mono'", size: 10 }, maxTicksLimit: 4 },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+const charts = {
+  volt: makeChart('voltChart', '#4d9fff'),
+  temp: makeChart('tempChart', '#ff6b6b'),
+  stab: makeChart('stabChart', '#00e5a0'),
+  gyro: makeChart('gyroChart', '#b388ff')
+};
+
+function push(key, val) {
+  const d = charts[key].data.datasets[0].data;
+  d.push(val);
+  if (d.length > MAX_PTS) d.shift();
+  charts[key].update('none');
+  const lv = document.getElementById('lv-' + key);
+  if (lv) lv.textContent = typeof val === 'number' ? val.toFixed(2) : val;
+}
+
+// ── Mode ──
+function setMode(m) {
+  const el   = document.getElementById('m-mode');
+  const card = document.getElementById('card-mode');
+  card.className = 'metric-card';
+  if (m === 0) {
+    el.textContent = 'NORMAL';
+    el.className   = 'metric-value normal';
+    card.style.setProperty('--accent', 'var(--green)');
+    card.style.borderColor = '';
+  } else if (m === 1) {
+    el.textContent = 'SAFE';
+    el.className   = 'metric-value safe';
+    card.style.setProperty('--accent', 'var(--amber)');
+    card.style.borderColor = 'rgba(245,166,35,0.25)';
+  } else {
+    el.textContent = 'CRITICAL';
+    el.className   = 'metric-value critical';
+    card.style.setProperty('--accent', 'var(--red)');
+    card.style.borderColor = 'rgba(255,77,109,0.25)';
+  }
+}
+
+// ── Faults ──
+function setFaults(f) {
+  document.getElementById('m-faults').textContent = '0x' + f.toString(16).padStart(2,'0').toUpperCase();
+
+  // bit → element id mapping
+  const map = { f0: 0x01, f1: 0x02, f3: 0x08, f4: 0x10, f5: 0x20 };
+  for (const [id, bit] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    const wasActive = el.classList.contains('active');
+    const isActive  = (f & bit) !== 0;
+    el.className = 'fault-flag' + (isActive ? ' active' : '');
+
+    // Count new fault events (transition from inactive → active)
+    if (!wasActive && isActive) {
+      faultEvents++;
+      document.getElementById('m-fault-events').textContent = faultEvents;
+    }
+    // Count manual trigger (bit 0x20)
+    if (id === 'f5' && !wasActive && isActive) {
+      manualTriggers++;
+      document.getElementById('m-manual-triggers').textContent = manualTriggers;
+    }
+  }
+}
+
+// ── Timestamp ──
+function setTimestamp(ms) {
+  const s = Math.floor(ms / 1000);
+  const m2 = Math.floor(s / 60);
+  const h  = Math.floor(m2 / 60);
+  document.getElementById('m-ts').textContent =
+    String(h).padStart(2,'0') + ':' + String(m2%60).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  document.getElementById('m-tsraw').textContent = ms.toLocaleString() + ' ms';
+}
+
+// ── Validation ranges ──
+const VALID = {
+  volt: [0.5,   6.0],
+  temp: [-40,   125],
+  stab: [-500,  500],
+  gyro: [-2000, 2000]
+};
+function valid(key, v) {
+  if (!isFinite(v) || isNaN(v)) return false;
+  return v >= VALID[key][0] && v <= VALID[key][1];
+}
+function extractNum(line) {
+  const m = line.match(/:\s*([-\d.]+)/);
+  return m ? parseFloat(m[1]) : NaN;
+}
+
+// ── Log ──
+function logLine(text, cls) {
+  const el = document.getElementById('log');
+  const span = document.createElement('span');
+  span.className = 'log-line' + (cls ? ' ' + cls : '');
+  span.textContent = text + '\n';
+  el.appendChild(span);
+  if (el.children.length > 200) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+document.getElementById('clearBtn').onclick = () => document.getElementById('log').innerHTML = '';
+
+// ══════════════════════════════════════════
+// PARSER  — handles both TX and RX formats
+// ══════════════════════════════════════════
+//
+// TX format (from CubeSat serial):
+//   [TX] Mode:0 Temp:30.00 Volt:3.30
+//
+// RX format (from Base Station serial):
+//   --- Packet Received ---
+//   Time:        1234
+//   Voltage:     3.30 V
+//   Temperature: 30.00 C
+//   Stability:   5.82
+//   Gyro:        12.30
+//   Faults:      0x00
+//   Mode:        0 (NORMAL)      ← "Mode:" followed by digit, then optional text
+//   RSSI:        -45
+//
+// The fix: parse every line independently — no partial counter gating for mode/faults.
+// Packet counter increments on "--- Packet Received ---" (RX) or [TX] line.
+
+function parseLine(raw) {
+  const line = raw.trim();
+  if (!line) return;
+
+  // ── [TX] compact line ──
+  const tx = line.match(/\[TX\]\s+Mode:(\d)\s+Temp:([-\d.]+)\s+Volt:([-\d.]+)/);
+  if (tx) {
+    const mode = +tx[1], temp = parseFloat(tx[2]), volt = parseFloat(tx[3]);
+    if ([0,1,2].includes(mode)) setMode(mode);
+    if (valid('temp', temp)) { document.getElementById('m-temp').textContent = temp.toFixed(1) + ' °C'; push('temp', temp); }
+    if (valid('volt', volt)) { document.getElementById('m-volt').textContent = volt.toFixed(2) + ' V';  push('volt', volt); }
+    packetCount++;
+    document.getElementById('m-packets').textContent = packetCount;
+    return;
+  }
+
+  // ── RX: packet boundary ──
+  if (/Packet Received/i.test(line)) {
+    packetCount++;
+    document.getElementById('m-packets').textContent = packetCount;
+    return;
+  }
+
+  // ── RX: Mode line  e.g. "Mode:        0 (NORMAL)" or "Mode: 2" ──
+  // Must be tested BEFORE generic extractNum to avoid eating the digit
+  if (/^Mode:/i.test(line)) {
+    const m = line.match(/Mode:\s*(\d)/i);
+    if (m && [0,1,2].includes(+m[1])) setMode(+m[1]);
+    return;
+  }
+
+  // ── RX: Faults line  e.g. "Faults:      0x23" ──
+  if (/^Faults/i.test(line)) {
+    const m = line.match(/0x([0-9A-Fa-f]+)/);
+    if (m) { const v = parseInt(m[1], 16); if (!isNaN(v)) setFaults(v); }
+    return;
+  }
+
+  // ── RX: Voltage ──
+  if (/^Voltage:/i.test(line)) {
+    const v = extractNum(line);
+    if (valid('volt', v)) { document.getElementById('m-volt').textContent = v.toFixed(2) + ' V'; push('volt', v); }
+    return;
+  }
+
+  // ── RX: Temperature ──
+  if (/^Temperature:/i.test(line)) {
+    const v = extractNum(line);
+    if (valid('temp', v)) { document.getElementById('m-temp').textContent = v.toFixed(1) + ' °C'; push('temp', v); }
+    return;
+  }
+
+  // ── RX: Stability ──
+  if (/^Stability:/i.test(line)) {
+    const v = extractNum(line);
+    if (valid('stab', v)) push('stab', v);
+    return;
+  }
+
+  // ── RX: Gyro ──
+  if (/^Gyro:/i.test(line)) {
+    const v = extractNum(line);
+    if (valid('gyro', v)) push('gyro', v);
+    return;
+  }
+
+  // ── RX: Time ──
+  if (/^Time:/i.test(line)) {
+    const v = parseInt(line.replace(/^Time:\s*/i, ''));
+    if (isFinite(v) && v >= 0) setTimestamp(v);
+    return;
+  }
+
+  // ── CubeSat: button / recovery messages ──
+  if (/\[BUTTON\]/i.test(line))   { /* manual trigger counted via fault bit 0x20 */ }
+  if (/\[CRITICAL\]/i.test(line)) { /* already reflected in mode */ }
+}
+
+// ── Connection status ──
+function setConnState(state, label) {
+  document.getElementById('conn-dot').className = 'status-dot ' + state;
+  document.getElementById('conn-label').textContent = label;
+}
+
+// ── Serial Connect ──
+const connectBtn = document.getElementById('connectBtn');
+if (!('serial' in navigator)) {
+  document.getElementById('nosupport').style.display = 'block';
+  connectBtn.disabled = true;
+  connectBtn.textContent = 'Not Supported';
+}
+
+connectBtn.onclick = async () => {
+  if (port) {
+    try { await reader.cancel(); await port.close(); } catch(e) {}
+    port = null; reader = null;
+    connectBtn.textContent = 'Connect Serial';
+    connectBtn.className   = 'btn primary';
+    setConnState('', 'Disconnected');
+    return;
+  }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    setConnState('connected', 'Connected');
+    connectBtn.textContent = 'Disconnect';
+    connectBtn.className   = 'btn danger';
+    logLine('[SYS] Serial port opened at 115200 baud', 'sys');
+
+    const dec = new TextDecoderStream();
+    port.readable.pipeTo(dec.writable);
+    reader = dec.readable.getReader();
+    let buf = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value;
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const l of lines) {
+        if (!l.trim()) continue;
+        const cls = l.includes('[ERR]') || l.includes('FAILED') ? 'err'
+                  : l.includes('[SYS]') || l.includes('OK') || l.includes('Initialized') ? 'sys'
+                  : l.includes('[CRITICAL]') || l.includes('[WARN]') || l.includes('SAFE') ? 'warn'
+                  : '';
+        logLine(l.trim(), cls);
+        parseLine(l);
+      }
+    }
+  } catch(e) {
+    logLine('[ERR] ' + e.message, 'err');
+    setConnState('error', 'Error');
+    connectBtn.textContent = 'Connect Serial';
+    connectBtn.className   = 'btn primary';
+    port = null; reader = null;
+  }
+};
+
+// ── Demo Mode ──
+const demoBtn = document.getElementById('demoBtn');
+demoBtn.onclick = () => {
+  if (demoInterval) {
+    clearInterval(demoInterval);
+    demoInterval = null;
+    demoBtn.textContent = 'Demo Mode';
+    demoBtn.className   = 'btn';
+    setConnState('', 'Disconnected');
+    logLine('[SYS] Demo mode stopped', 'sys');
+    return;
+  }
+  demoBtn.textContent = 'Stop Demo';
+  demoBtn.className   = 'btn danger';
+  setConnState('demo', 'Demo');
+  logLine('[SYS] Demo mode started — simulating fault injection cycle', 'sys');
+
+  let t = 0;
+  demoInterval = setInterval(() => {
+    t += 2000;
+    const phase  = Math.floor(t / 6000) % 3;
+    const temp   = phase === 1 ? 50 + Math.random()*3 : 27 + Math.sin(t/3000)*3 + Math.random();
+    const volt   = phase === 1 ? 2.75 + Math.random()*0.1 : 3.28 + Math.sin(t/5000)*0.15;
+    const stab   = Math.sin(t/2000)*4 + Math.random()*1.5;
+    const gyro   = Math.cos(t/1800)*12 + Math.random()*2;
+    const faults = phase === 1 ? 0x23 : 0x00;
+    const mode   = phase === 1 ? 2 : 0;
+
+    // Feed through the same parser so fault counters work in demo too
+    parseLine(`--- Packet Received ---`);
+    parseLine(`Time:        ${t}`);
+    parseLine(`Voltage:     ${volt.toFixed(2)} V`);
+    parseLine(`Temperature: ${temp.toFixed(2)} C`);
+    parseLine(`Stability:   ${stab.toFixed(2)}`);
+    parseLine(`Gyro:        ${gyro.toFixed(2)}`);
+    parseLine(`Faults:      0x${faults.toString(16).padStart(2,'0')}`);
+    parseLine(`Mode:        ${mode} (${['NORMAL','SAFE','CRITICAL'][mode]})`);
+
+    const line = `[TX] Mode:${mode} Temp:${temp.toFixed(2)} Volt:${volt.toFixed(2)}`;
+    logLine(line, mode === 2 ? 'warn' : '');
+    if (mode === 2) logLine('[CRITICAL] System unstable!', 'err');
+    if (faults & 0x20) logLine('[BUTTON] Manual fault triggered!', 'warn');
+  }, 2000);
+};
+</script>
+</body>
+</html>
